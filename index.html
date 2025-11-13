@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Parallel Transformer Load Calculator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #e0f2fe, #f8fafc);
+    }
+    .tab-active {
+      background: white;
+      color: #1e3a8a;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+    }
+    .card-step {
+      transition: all 0.4s ease-in-out;
+    }
+    
+    /* Heart Animation Styles */
+    .heart-trigger {
+        cursor: pointer;
+        display: inline-block;
+        transition: transform 0.1s;
+        user-select: none;
+    }
+    .heart-trigger:active {
+        transform: scale(0.8);
+    }
+    .floating-heart {
+        position: fixed;
+        pointer-events: none;
+        z-index: 9999;
+        animation: floatUp 2s ease-out forwards;
+        font-size: 20px;
+    }
+    @keyframes floatUp {
+        0% {
+            opacity: 1;
+            transform: translate(-50%, 0) scale(0.5);
+        }
+        100% {
+            opacity: 0;
+            transform: translate(-50%, -150px) scale(2.5);
+        }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+  <div class="max-w-2xl w-full bg-white rounded-2xl shadow-xl relative overflow-hidden flex flex-col">
+
+    <div class="bg-white border-b border-slate-100 p-6 sm:p-8 pb-4 z-10">
+      <h1 class="text-2xl font-bold text-slate-800 text-center">Parallel Transformer Load Calculator</h1>
+    </div>
+
+    <div class="p-6 sm:p-8 pt-4 flex-grow relative min-h-[300px]">
+      
+      <div id="step1" class="card-step opacity-100 translate-y-0">
+        <label for="transformerCount" class="block text-sm font-medium text-slate-700 mb-2 mt-2">
+          How many transformers are in parallel?
+        </label>
+        <input type="number" id="transformerCount" min="2" value="2"
+               class="block w-full p-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        <button id="nextButton" class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold mt-6 hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200">
+          Next Step &rarr;
+        </button>
+      </div>
+
+      <div id="step2" class="card-step hidden opacity-0 translate-y-6">
+        <h2 class="text-lg font-semibold text-slate-700 mb-3">Enter Transformer Details</h2>
+        <p class="p-3 bg-blue-50 text-blue-800 rounded-lg text-sm mb-4 border border-blue-100">
+          <span class="font-bold">Note:</span> Ensure all transformers have the same Voltage Ratio.
+        </p>
+        <div id="transformerInputs" class="space-y-4 max-h-[400px] overflow-y-auto pr-1"></div>
+        <button id="calculateMaxLoadButton" class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold mt-6 hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200">
+          Calculate Results
+        </button>
+      </div>
+
+      <div id="step3" class="card-step hidden opacity-0 translate-y-6">
+        <h2 class="text-lg font-semibold text-slate-700 mb-2 text-center">Maximum Safe System Load</h2>
+        
+        <div class="my-4 text-center">
+          <span id="maxSafeLoadResult" class="text-5xl font-bold text-blue-600">0.00</span>
+          <span class="text-2xl text-slate-500">MVA</span>
+        </div>
+        
+        <div id="efficiencyContainer" class="text-center mb-6">
+          <span class="inline-block px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm border border-gray-200">
+            Efficiency: <strong id="efficiencyValue" class="text-slate-800">0%</strong>
+            <span class="text-xs ml-1 text-slate-500">(Utilized Capacity)</span>
+          </span>
+        </div>
+
+        <div class="bg-slate-50 p-4 rounded-lg border border-slate-100">
+          <h3 class="text-xs font-bold text-slate-400 uppercase mb-4 tracking-wider">Load Distribution at Limit</h3>
+          <div id="individualLoads" class="space-y-5"></div>
+        </div>
+      </div>
+
+      <div id="step4" class="card-step hidden opacity-0 translate-y-6">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-lg font-semibold text-slate-700">Running Load Check</h2>
+          <button id="resetButton" class="text-sm text-red-500 hover:text-red-700 font-medium transition-colors flex items-center">
+            <span class="mr-1">&#x21bb;</span> Reset All
+          </button>
+        </div>
+        
+        <div class="flex flex-col sm:flex-row sm:space-x-4 space-y-4 sm:space-y-0">
+          <input type="number" id="runningLoad" placeholder="Enter running load (MVA)"
+                 class="block w-full p-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+          <button id="calculateRunningLoadButton" class="sm:w-auto w-full bg-slate-600 text-white p-3 px-6 rounded-lg font-semibold hover:bg-slate-700 transition-colors whitespace-nowrap shadow-lg shadow-slate-200">
+            Check Load
+          </button>
+        </div>
+
+        <div id="runningLoadResultsContainer" class="hidden mt-6 bg-slate-50 p-4 rounded-lg border border-slate-100">
+          <h3 class="text-xs font-bold text-slate-400 uppercase mb-4 tracking-wider">
+            Distribution for <span id="runningLoadValue" class="text-slate-700">0</span> MVA
+          </h3>
+          <div id="runningLoadResults" class="space-y-5"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="messageBox" class="hidden absolute top-20 left-1/2 transform -translate-x-1/2 w-11/12 z-50 p-3 bg-red-100 text-red-700 rounded-lg text-sm border border-red-200 shadow-lg text-center"></div>
+
+    <div class="bg-slate-50 p-4 border-t border-slate-100">
+      <div class="bg-slate-200 rounded-full p-1.5 flex justify-center space-x-1 sm:space-x-2">
+        <button class="tab-pill flex-1 px-2 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold text-slate-600 transition-all duration-300 tab-active" data-step="1">Count</button>
+        <button class="tab-pill flex-1 px-2 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold text-slate-600 transition-all duration-300" data-step="2">Details</button>
+        <button class="tab-pill flex-1 px-2 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold text-slate-600 transition-all duration-300" data-step="3">Safe Limit</button>
+        <button class="tab-pill flex-1 px-2 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold text-slate-600 transition-all duration-300" data-step="4">Running</button>
+      </div>
+      
+      <div class="text-center mt-4">
+        <p class="text-xs text-slate-400 font-medium">
+            Made with <span id="heartTrigger" class="heart-trigger text-red-500 text-sm mx-0.5">❤️</span> by MR2000
+        </p>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let transformers = [];
+    let totalFactorF = 0;
+
+    const step1 = document.getElementById('step1');
+    const step2 = document.getElementById('step2');
+    const step3 = document.getElementById('step3');
+    const step4 = document.getElementById('step4');
+    const messageBox = document.getElementById('messageBox');
+    const tabs = document.querySelectorAll('.tab-pill');
+
+    const nextButton = document.getElementById('nextButton');
+    const transformerInputs = document.getElementById('transformerInputs');
+    const calculateMaxLoadButton = document.getElementById('calculateMaxLoadButton');
+    const calculateRunningLoadButton = document.getElementById('calculateRunningLoadButton');
+    const resetButton = document.getElementById('resetButton');
+    const heartTrigger = document.getElementById('heartTrigger');
+
+    // --- HEART ANIMATION LOGIC ---
+    heartTrigger.addEventListener('click', (e) => {
+        const rect = heartTrigger.getBoundingClientRect();
+        
+        // Create 5-8 floating hearts
+        const count = 5 + Math.floor(Math.random() * 4);
+        
+        for(let i = 0; i < count; i++) {
+            const heart = document.createElement('div');
+            heart.innerHTML = '❤️';
+            heart.classList.add('floating-heart');
+            
+            // Start position: center of the trigger
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top;
+            
+            // Add slight random horizontal spread for starting point
+            const spread = (Math.random() - 0.5) * 30;
+            
+            heart.style.left = (centerX + spread) + 'px';
+            heart.style.top = centerY + 'px';
+            
+            document.body.appendChild(heart);
+
+            // Remove from DOM after animation finishes (2s)
+            setTimeout(() => {
+                heart.remove();
+            }, 2000);
+        }
+    });
+
+    // --- HELPER: Create Visual Progress Bar ---
+    function createProgressBar(load, rating, percent) {
+        let colorClass = 'bg-emerald-500';
+        let textClass = 'text-slate-600';
+        let warningText = '';
+        
+        if (percent > 100) { 
+            colorClass = 'bg-red-500'; 
+            textClass = 'text-red-600 font-bold';
+            warningText = '<span class="ml-2 text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Overload</span>';
+        } else if (percent > 85) { 
+            colorClass = 'bg-amber-500'; 
+            textClass = 'text-amber-600 font-semibold'; 
+        }
+
+        const visualWidth = percent > 100 ? 100 : percent;
+
+        return `
+        <div class="w-full">
+            <div class="flex justify-between text-sm mb-1.5">
+                <span class="font-semibold text-slate-700">Transformer</span>
+                <div class="flex items-center">
+                    <span class="${textClass}">${load.toFixed(2)} / ${rating} MVA (${percent.toFixed(1)}%)</span>
+                    ${warningText}
+                </div>
+            </div>
+            <div class="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                <div class="${colorClass} h-2.5 rounded-full transition-all duration-500" style="width: ${visualWidth}%"></div>
+            </div>
+        </div>
+        `;
+    }
+
+    // --- Tab Navigation ---
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const target = tab.dataset.step;
+        if(target > 2 && transformers.length === 0) return; 
+        switchToStep(target);
+      });
+    });
+
+    function switchToStep(stepNumber) {
+      tabs.forEach(t => t.classList.remove('tab-active', 'text-blue-700', 'bg-white', 'shadow-sm'));
+      const activeTab = document.querySelector(`[data-step="${stepNumber}"]`);
+      activeTab.classList.add('tab-active');
+
+      [step1, step2, step3, step4].forEach(card => {
+        card.classList.add('hidden', 'opacity-0', 'translate-y-6');
+        card.classList.remove('block');
+      });
+
+      const activeCard = document.getElementById(`step${stepNumber}`);
+      activeCard.classList.remove('hidden');
+      setTimeout(() => {
+        activeCard.classList.remove('opacity-0', 'translate-y-6');
+        activeCard.classList.add('opacity-100', 'translate-y-0');
+      }, 20);
+    }
+
+    // --- Step 1: Generate Inputs ---
+    nextButton.addEventListener('click', () => {
+      const count = parseInt(document.getElementById('transformerCount').value);
+      if (isNaN(count) || count < 2) {
+        showMessage('Please enter at least 2 transformers.');
+        return;
+      }
+      generateInputFields(count);
+      switchToStep(2);
+    });
+
+    function generateInputFields(count) {
+      transformerInputs.innerHTML = '';
+      for (let i = 1; i <= count; i++) {
+        transformerInputs.innerHTML += `
+          <div class="p-4 border border-slate-200 rounded-lg bg-slate-50/50 relative hover:border-blue-300 transition-colors">
+             <div class="absolute -top-2.5 left-3 bg-slate-100 px-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider border border-slate-200 rounded">Transformer ${i}</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-1">
+              <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Rating (MVA)</label>
+                <input type="number" id="mva_${i}" step="0.1" placeholder="e.g. 10"
+                       class="block w-full p-2.5 text-sm border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Impedance (%)</label>
+                <input type="number" id="impedance_${i}" step="0.01" placeholder="e.g. 5.5"
+                       class="block w-full p-2.5 text-sm border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // --- Step 3: Calculate Max Safe Load & Efficiency ---
+    calculateMaxLoadButton.addEventListener('click', () => {
+      if (!validateAndStoreTransformerData()) return;
+
+      const maxSafeLoadResults = [];
+      let totalInstalledCapacity = 0;
+
+      transformers.forEach(t => {
+        totalInstalledCapacity += t.mva;
+        const maxSystemLoad = t.mva * (totalFactorF / t.factorF);
+        maxSafeLoadResults.push(maxSystemLoad);
+      });
+
+      const maxSafeLoad = Math.min(...maxSafeLoadResults);
+      document.getElementById('maxSafeLoadResult').innerText = maxSafeLoad.toFixed(2);
+
+      const efficiency = (maxSafeLoad / totalInstalledCapacity) * 100;
+      const efficiencyEl = document.getElementById('efficiencyValue');
+      efficiencyEl.innerText = efficiency.toFixed(1) + '%';
+      
+      if(efficiency < 75) efficiencyEl.className = "text-red-600 font-bold";
+      else if(efficiency < 90) efficiencyEl.className = "text-amber-600 font-bold";
+      else efficiencyEl.className = "text-emerald-600 font-bold";
+
+      const individualLoadsContainer = document.getElementById('individualLoads');
+      individualLoadsContainer.innerHTML = '';
+      transformers.forEach((t, index) => {
+        const load = maxSafeLoad * (t.factorF / totalFactorF);
+        const percentLoaded = (load / t.mva) * 100;
+        individualLoadsContainer.innerHTML += createProgressBar(load, t.mva, percentLoaded);
+      });
+
+      switchToStep(3);
+    });
+
+    // --- Step 4: Running Load Check ---
+    calculateRunningLoadButton.addEventListener('click', () => {
+      const runningLoad = parseFloat(document.getElementById('runningLoad').value);
+      if (isNaN(runningLoad) || runningLoad <= 0) {
+        showMessage('Please enter a valid running load > 0.');
+        return;
+      }
+
+      document.getElementById('runningLoadValue').innerText = runningLoad.toFixed(2);
+      const resultsContainer = document.getElementById('runningLoadResults');
+      resultsContainer.innerHTML = '';
+
+      transformers.forEach((t, index) => {
+        const load = runningLoad * (t.factorF / totalFactorF);
+        const percentLoaded = (load / t.mva) * 100;
+        resultsContainer.innerHTML += createProgressBar(load, t.mva, percentLoaded);
+      });
+
+      document.getElementById('runningLoadResultsContainer').classList.remove('hidden');
+      switchToStep(4);
+    });
+
+    if(resetButton) {
+        resetButton.addEventListener('click', () => {
+            if(confirm("Reset all data?")) {
+                location.reload();
+            }
+        });
+    }
+
+    function validateAndStoreTransformerData() {
+      transformers = [];
+      totalFactorF = 0;
+      const count = transformerInputs.children.length;
+
+      for (let i = 1; i <= count; i++) {
+        const mva = parseFloat(document.getElementById(`mva_${i}`).value);
+        const impedance = parseFloat(document.getElementById(`impedance_${i}`).value);
+
+        if (isNaN(mva) || mva <= 0 || isNaN(impedance) || impedance <= 0) {
+          showMessage(`Invalid data for Transformer ${i}.`);
+          return false;
+        }
+        const factorF = mva / impedance;
+        transformers.push({ mva, impedance, factorF });
+        totalFactorF += factorF;
+      }
+      return true;
+    }
+
+    function showMessage(message) {
+      messageBox.innerText = message;
+      messageBox.classList.remove('hidden');
+      setTimeout(() => {
+        messageBox.classList.add('hidden');
+      }, 3000); 
+    }
+  </script>
+</body>
+</html>
